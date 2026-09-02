@@ -82,18 +82,16 @@ def add_member(payload: FamilyMemberCreate, current_user: User = Depends(require
     family = get_family_for_user(db, current_user.id)
     if not family:
         raise HTTPException(status_code=404, detail="Family not found.")
-    if payload.role == UserRole.parent.value:
-        raise HTTPException(status_code=400, detail="Use the parent invitation endpoint for parent accounts.")
     if payload.role == UserRole.parent.value and not payload.email:
         raise HTTPException(status_code=400, detail="An email is required for a parent account.")
-    email = payload.email.lower() if payload.email else f"child-{secrets.token_hex(6)}@familyquest.app"
+    email = payload.email.strip().lower() if payload.email else f"child-{secrets.token_hex(6)}@familyquest.app"
     if payload.role == UserRole.parent.value and not payload.password:
         raise HTTPException(status_code=400, detail="A password is required for a parent account.")
     existing = db.query(User).filter(User.email == email).first()
     if existing:
         if db.query(FamilyMember).filter(FamilyMember.family_id == family.id, FamilyMember.user_id == existing.id).first():
             raise HTTPException(status_code=409, detail="This user is already a family member.")
-        raise HTTPException(status_code=409, detail="This email is already registered. Use a family invitation instead.")
+        raise HTTPException(status_code=409, detail="This email is already registered.")
     user = User(email=email, full_name=payload.full_name.strip(), password_hash=get_password_hash(payload.password or secrets.token_urlsafe(16)), role=payload.role, is_active=True)
     db.add(user)
     db.flush()

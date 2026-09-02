@@ -64,6 +64,26 @@ def test_login_normalizes_email_case_and_whitespace(client: TestClient):
     assert response.json()["access_token"]
 
 
+def test_parent_can_create_another_parent_account_directly(client: TestClient):
+    parent_headers = auth(client, "owner@example.com", "Owner")
+    client.post("/api/v1/family", headers=parent_headers, json={"name": "Home"})
+
+    response = client.post(
+        "/api/v1/family/members",
+        headers=parent_headers,
+        json={
+            "role": "parent",
+            "full_name": "Second Parent",
+            "email": "second@example.com",
+            "password": "password123",
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["role"] == "parent"
+    assert response.json()["email"] == "second@example.com"
+
+
 def test_task_completion_requires_assignment_and_awards_xp(client: TestClient):
     parent_headers = auth(client, "parent@example.com", "Parent")
     assert client.post("/api/v1/family", headers=parent_headers, json={"name": "Home"}).status_code == 201
