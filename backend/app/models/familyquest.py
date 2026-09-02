@@ -108,6 +108,7 @@ class FamilyInvitation(Base):
     family_id = Column(String(36), ForeignKey("families.id"), nullable=False)
     invited_email = Column(String(255), nullable=False, index=True)
     invited_name = Column(String(255), nullable=False)
+    role = Column(String(20), default=UserRole.child.value, nullable=False)
     token = Column(String(128), unique=True, nullable=False, index=True)
     status = Column(String(20), default="pending", nullable=False)
     created_by = Column(String(36), ForeignKey("users.id"), nullable=False)

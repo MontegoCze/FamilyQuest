@@ -12,6 +12,13 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60
     database_url: str = "sqlite:///./familyquest.db"
     backend_cors_origins: List[str] = ["http://localhost:5173", "http://localhost:3000"]
+    frontend_url: str = "http://localhost:5173"
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = ""
+    smtp_use_tls: bool = True
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

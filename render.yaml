@@ -17,6 +17,18 @@ services:
         sync: false
       - key: BACKEND_CORS_ORIGINS
         value: '["https://familyquest-web-pkry.onrender.com","https://familyquest-web-lacv.onrender.com","https://familyquest-web.onrender.com"]'
+      - key: FRONTEND_URL
+        value: https://familyquest-web-pkry.onrender.com
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM_EMAIL
+        sync: false
 
   - type: web
     name: familyquest-web

@@ -1,6 +1,7 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
+from typing import Literal
 
 
 class FamilyCreate(BaseModel):
@@ -52,8 +53,9 @@ class FamilyAccountRoleUpdate(BaseModel):
 
 
 class FamilyInvitationCreate(BaseModel):
-    full_name: str = Field(..., min_length=2, max_length=120)
-    email: str = Field(..., min_length=3, max_length=255)
+    email: EmailStr
+    role: Literal["parent", "child"]
+    full_name: str | None = Field(default=None, min_length=2, max_length=120)
 
 
 class FamilyInvitationRead(BaseModel):
@@ -61,8 +63,26 @@ class FamilyInvitationRead(BaseModel):
     family_id: str
     invited_email: str
     invited_name: str
+    role: str
     token: str
     status: str
     expires_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class FamilyInvitationPublicRead(BaseModel):
+    family_name: str
+    invited_email: EmailStr
+    role: str
+    expires_at: datetime
+
+
+class InvitationAcceptExisting(BaseModel):
+    pass
+
+
+class InvitationRegistration(BaseModel):
+    email: EmailStr
+    full_name: str = Field(..., min_length=2, max_length=120)
+    password: str = Field(..., min_length=8, max_length=128)

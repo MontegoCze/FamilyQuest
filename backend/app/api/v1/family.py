@@ -1,19 +1,21 @@
 from datetime import datetime, timedelta
+import smtplib
 import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, require_parent
-from app.core.security import get_password_hash
+from app.core.security import create_access_token, get_password_hash
 from app.crud.family import create_family, get_family_for_user, list_family_members
 from app.database import get_db
 from app.models.familyquest import FamilyInvitation, FamilyMember, User, UserRole
 from app.schemas.family import (
     FamilyCreate, FamilyInvitationCreate, FamilyInvitationRead, FamilyMemberCreate, FamilyMemberRead,
     FamilyMemberUpdate, FamilyAccountPasswordUpdate, FamilyAccountRoleUpdate,
-    FamilyAccountStatusUpdate, FamilyRead,
+    FamilyAccountStatusUpdate, FamilyRead, FamilyInvitationPublicRead, InvitationRegistration,
 )
+from app.services.email import send_family_invitation
 
 router = APIRouter()
 
@@ -107,48 +109,154 @@ def add_account(payload: FamilyMemberCreate, current_user: User = Depends(requir
     return add_member(payload, current_user, db)
 
 
-@router.post("/invitations", response_model=FamilyInvitationRead, status_code=status.HTTP_201_CREATED)
-def invite_parent(payload: FamilyInvitationCreate, current_user: User = Depends(require_parent), db: Session = Depends(get_db)):
+@router.get("/invitations", response_model=list[FamilyInvitationRead])
+def list_invitations(current_user: User = Depends(require_parent), db: Session = Depends(get_db)):
     family = get_family_for_user(db, current_user.id)
     if not family:
         raise HTTPException(status_code=404, detail="Family not found.")
-    email = payload.email.lower()
+    now = datetime.utcnow()
+    pending = db.query(FamilyInvitation).filter(
+        FamilyInvitation.family_id == family.id,
+        FamilyInvitation.status == "pending",
+        FamilyInvitation.expires_at > now,
+    ).all()
+    return pending
+
+
+@router.post("/invitations", response_model=FamilyInvitationRead, status_code=status.HTTP_201_CREATED)
+def invite_member(payload: FamilyInvitationCreate, current_user: User = Depends(require_parent), db: Session = Depends(get_db)):
+    family = get_family_for_user(db, current_user.id)
+    if not family:
+        raise HTTPException(status_code=404, detail="Family not found.")
+    email = str(payload.email).lower()
     if db.query(User).filter(User.email == email).first():
         raise HTTPException(status_code=409, detail="This email is already registered.")
+    if db.query(FamilyMember).join(User).filter(
+        FamilyMember.family_id == family.id, User.email == email
+    ).first():
+        raise HTTPException(status_code=409, detail="This user is already a family member.")
+    active_invitation = db.query(FamilyInvitation).filter(
+        FamilyInvitation.family_id == family.id,
+        FamilyInvitation.invited_email == email,
+        FamilyInvitation.status == "pending",
+        FamilyInvitation.expires_at > datetime.utcnow(),
+    ).first()
+    if active_invitation:
+        raise HTTPException(status_code=409, detail="An active invitation already exists for this email.")
     invitation = FamilyInvitation(
-        family_id=family.id, invited_email=email, invited_name=payload.full_name.strip(),
+        family_id=family.id, invited_email=email,
+        invited_name=(payload.full_name or email.split("@")[0]).strip(),
+        role=payload.role,
         token=secrets.token_urlsafe(32), status="pending", created_by=current_user.id,
         expires_at=datetime.utcnow() + timedelta(days=7),
     )
     db.add(invitation)
     db.commit()
     db.refresh(invitation)
+    try:
+        send_family_invitation(recipient=email, family_name=family.name, token=invitation.token)
+    except (smtplib.SMTPException, OSError, RuntimeError) as exc:
+        db.delete(invitation)
+        db.commit()
+        raise HTTPException(status_code=503, detail="Invitation email could not be sent.") from exc
     return invitation
 
 
-@router.post("/invitations/{token}/accept", response_model=FamilyMemberRead, status_code=status.HTTP_201_CREATED)
-def accept_parent_invitation(token: str, payload: FamilyMemberCreate, db: Session = Depends(get_db)):
+@router.get("/invitations/{token}", response_model=FamilyInvitationPublicRead)
+def read_invitation(token: str, db: Session = Depends(get_db)):
     invitation = db.query(FamilyInvitation).filter(
         FamilyInvitation.token == token, FamilyInvitation.status == "pending",
         FamilyInvitation.expires_at > datetime.utcnow(),
     ).first()
     if not invitation:
         raise HTTPException(status_code=404, detail="Invitation is invalid or expired.")
-    if payload.role != UserRole.parent.value or payload.email.lower() != invitation.invited_email:
-        raise HTTPException(status_code=400, detail="Invitation details do not match.")
-    if db.query(User).filter(User.email == invitation.invited_email).first():
-        raise HTTPException(status_code=409, detail="This email is already registered.")
-    if not payload.password:
-        raise HTTPException(status_code=400, detail="A password is required to accept an invitation.")
-    user = User(email=invitation.invited_email, full_name=payload.full_name.strip(), password_hash=get_password_hash(payload.password), role=UserRole.parent.value, is_active=True)
-    db.add(user)
-    db.flush()
-    member = FamilyMember(family_id=invitation.family_id, user_id=user.id, role=UserRole.parent.value)
+    return FamilyInvitationPublicRead(
+        family_name=invitation.family.name, invited_email=invitation.invited_email,
+        role=invitation.role, expires_at=invitation.expires_at,
+    )
+
+
+@router.post("/invitations/{token}/accept", response_model=FamilyMemberRead, status_code=status.HTTP_201_CREATED)
+def accept_invitation(token: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    invitation = db.query(FamilyInvitation).filter(
+        FamilyInvitation.token == token, FamilyInvitation.status == "pending",
+        FamilyInvitation.expires_at > datetime.utcnow(),
+    ).first()
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Invitation is invalid or expired.")
+    if current_user.email.lower() != invitation.invited_email.lower():
+        raise HTTPException(status_code=403, detail="This invitation belongs to a different email address.")
+    if db.query(FamilyMember).filter(
+        FamilyMember.family_id == invitation.family_id, FamilyMember.user_id == current_user.id
+    ).first():
+        raise HTTPException(status_code=409, detail="You are already a member of this family.")
+    member = FamilyMember(family_id=invitation.family_id, user_id=current_user.id, role=invitation.role)
     db.add(member)
     invitation.status = "accepted"
     db.commit()
     db.refresh(member)
     return member
+
+
+@router.post("/invitations/{token}/register", response_model=dict[str, str], status_code=status.HTTP_201_CREATED)
+def register_from_invitation(token: str, payload: InvitationRegistration, db: Session = Depends(get_db)):
+    invitation = db.query(FamilyInvitation).filter(
+        FamilyInvitation.token == token, FamilyInvitation.status == "pending",
+        FamilyInvitation.expires_at > datetime.utcnow(),
+    ).first()
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Invitation is invalid or expired.")
+    email = str(payload.email).lower()
+    if email != invitation.invited_email.lower():
+        raise HTTPException(status_code=400, detail="Invitation email does not match.")
+    if db.query(User).filter(User.email == email).first():
+        raise HTTPException(status_code=409, detail="This email is already registered. Sign in to accept the invitation.")
+    user = User(
+        email=email, full_name=payload.full_name.strip(),
+        password_hash=get_password_hash(payload.password), role=invitation.role, is_active=True,
+    )
+    db.add(user)
+    db.flush()
+    member = FamilyMember(family_id=invitation.family_id, user_id=user.id, role=invitation.role)
+    db.add(member)
+    invitation.status = "accepted"
+    db.commit()
+    return {
+        "access_token": create_access_token(
+            subject=user.email, extra_claims={"user_id": user.id, "role": user.role}
+        ),
+        "token_type": "bearer",
+    }
+
+
+@router.delete("/invitations/{invitation_id}", status_code=status.HTTP_204_NO_CONTENT)
+def cancel_invitation(invitation_id: str, current_user: User = Depends(require_parent), db: Session = Depends(get_db)):
+    family = get_family_for_user(db, current_user.id)
+    invitation = db.query(FamilyInvitation).filter(
+        FamilyInvitation.id == invitation_id, FamilyInvitation.family_id == family.id if family else ""
+    ).first() if family else None
+    if not invitation or invitation.status != "pending":
+        raise HTTPException(status_code=404, detail="Pending invitation not found.")
+    invitation.status = "cancelled"
+    db.commit()
+
+
+@router.post("/invitations/{invitation_id}/resend", response_model=FamilyInvitationRead)
+def resend_invitation(invitation_id: str, current_user: User = Depends(require_parent), db: Session = Depends(get_db)):
+    family = get_family_for_user(db, current_user.id)
+    invitation = db.query(FamilyInvitation).filter(
+        FamilyInvitation.id == invitation_id, FamilyInvitation.family_id == family.id if family else ""
+    ).first() if family else None
+    if not invitation or invitation.status != "pending":
+        raise HTTPException(status_code=404, detail="Pending invitation not found.")
+    invitation.expires_at = datetime.utcnow() + timedelta(days=7)
+    db.commit()
+    try:
+        send_family_invitation(recipient=invitation.invited_email, family_name=family.name, token=invitation.token)
+    except (smtplib.SMTPException, OSError, RuntimeError) as exc:
+        raise HTTPException(status_code=503, detail="Invitation email could not be sent.") from exc
+    db.refresh(invitation)
+    return invitation
 
 
 @router.patch("/members/{user_id}", response_model=FamilyMemberRead)
