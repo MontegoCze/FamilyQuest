@@ -102,11 +102,12 @@ function AuthScreen({ mode, setMode, onLogin, error, setError }: { mode: 'login'
       <div className="brand-lockup">
         <svg className="brand-mark" viewBox="0 0 180 180" role="img" aria-label="FamilyQuest logo">
           <defs><linearGradient id="mark-gradient" x1="20%" y1="0%" x2="80%" y2="100%"><stop stopColor="#ce6bff" /><stop offset="1" stopColor="#5b2ce8" /></linearGradient></defs>
-          <path fill="url(#mark-gradient)" d="M90 11 22 69v39c0 5 3 10 8 12l60 38 60-38c5-2 8-7 8-12V69L90 11Z" />
-          <path fill="#0b082b" d="m90 39-45 38v22l45 29 45-29V77L90 39Z" />
-          <g fill="url(#mark-gradient)"><circle cx="61" cy="82" r="17" /><circle cx="119" cy="82" r="17" /><circle cx="90" cy="101" r="12" /><path d="M32 119c0-19 12-31 28-31s28 12 28 31l-28 22-28-22Zm60 0c0-19 12-31 28-31s28 12 28 31l-28 22-28-22Z" /></g>
-          <path fill="#0b082b" d="m90 150-21-18c-19-16-17-33-4-40 11-6 21 1 25 10 4-9 14-16 25-10 13 7 15 24-4 40l-21 18Z" />
-          <g fill="#ce6bff"><rect x="78" y="53" width="8" height="8" rx="1" /><rect x="94" y="53" width="8" height="8" rx="1" /><rect x="78" y="65" width="8" height="8" rx="1" /><rect x="94" y="65" width="8" height="8" rx="1" /></g>
+          <path fill="url(#mark-gradient)" d="M90 8 25 67c-5 5-5 13-1 20l9 15V72l57-48 57 48v30l9-15c4-7 4-15-1-20L90 8Z" />
+          <path fill="url(#mark-gradient)" d="M42 76v35c0 7 4 13 10 17l38 25 38-25c6-4 10-10 10-17V76l-48-40-48 40Z" />
+          <path fill="#0b082b" d="M52 80v27c0 4 2 7 6 10l32 21 32-21c4-3 6-6 6-10V80L90 48 52 80Z" />
+          <g fill="url(#mark-gradient)"><circle cx="68" cy="83" r="14" /><circle cx="112" cy="83" r="14" /><circle cx="90" cy="101" r="10" /><path d="M42 119c0-15 11-25 26-25s26 10 26 25l-26 22-26-22Zm44 0c0-15 11-25 26-25s26 10 26 25l-26 22-26-22Z" /></g>
+          <path fill="#0b082b" d="m90 151-18-15c-16-14-14-28-4-35 9-6 18-1 22 7 4-8 13-13 22-7 10 7 12 21-4 35l-18 15Z" />
+          <g fill="#d28bff"><rect x="79" y="57" width="9" height="9" rx="2" /><rect x="92" y="57" width="9" height="9" rx="2" /><rect x="79" y="70" width="9" height="9" rx="2" /><rect x="92" y="70" width="9" height="9" rx="2" /></g>
         </svg>
         <strong>FamilyQuest</strong>
         <span>ÚKOLY. ORGANIZACE. RODINA.</span>
