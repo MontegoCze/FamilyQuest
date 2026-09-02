@@ -20,7 +20,7 @@ services:
       - key: BACKEND_CORS_ORIGINS
         value: '["https://familyquest-web.onrender.com"]'
 
-  - type: static
+  - type: static_site
     name: familyquest-web
     buildCommand: cd frontend && npm ci && npm run build
     staticPublishPath: frontend/dist
