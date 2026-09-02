@@ -39,20 +39,20 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
 
 const navItems = [
   { label: 'Dashboard', icon: '⌂', target: '#top' },
+  { label: 'Statistiky', icon: '◒', target: '#stats' },
   { label: 'Moje úkoly', icon: '✓', target: '#missions' },
   { label: 'Achievementy', icon: '♛', target: '#achievements' },
   { label: 'Odměny', icon: '♢', target: '#rewards' },
   { label: 'Dobrodružství', icon: '◈', target: '#adventure' },
-  { label: 'Statistiky', icon: '◒', target: '#stats' },
 ];
 const parentNavItems = [
   { label: 'Dashboard', icon: '⌂', target: '#top' },
+  { label: 'Statistiky', icon: '◒', target: '#stats' },
   { label: 'Moje úkoly', icon: '✓', target: '#missions' },
   { label: 'Správa účtů', icon: '👤', target: '#accounts' },
   { label: 'Achievementy', icon: '♛', target: '#achievements' },
   { label: 'Odměny', icon: '♢', target: '#rewards' },
   { label: 'Dobrodružství', icon: '◈', target: '#adventure' },
-  { label: 'Statistiky', icon: '◒', target: '#stats' },
 ];
 const mobileItems = [
   { label: 'Domů', icon: '⌂', target: '#top' },
@@ -146,11 +146,25 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
 
 function DashboardSidebar({ user, familyName, onLogout }: { user: User; familyName: string; onLogout: () => void }) {
   const items = user.role === 'parent' ? parentNavItems : navItems;
-  return <aside className="dashboard-sidebar"><a className="sidebar-brand" href="#top"><span className="logo small">✦</span><span><strong>FamilyQuest</strong><small>{familyName}</small></span></a><nav className="sidebar-nav" aria-label="Hlavní navigace">{items.map((item, index) => <a className={index === 0 ? 'active' : ''} href={item.target} key={item.label}><span>{item.icon}</span>{item.label}</a>)}</nav><div className="sidebar-footer"><a href="#profile"><span>◉</span> Profil</a><button onClick={onLogout}><span>↪</span> Odhlásit se</button><div className="sidebar-user"><span className="user-avatar">{user.avatar || user.full_name.charAt(0)}</span><span><strong>{user.full_name}</strong><small>{user.role === 'parent' ? 'Rodič' : 'Dobrodruh'}</small></span></div></div></aside>;
+  const [activeTarget, setActiveTarget] = useState(window.location.hash || '#top');
+  useEffect(() => {
+    const updateActiveTarget = () => setActiveTarget(window.location.hash || '#top');
+    window.addEventListener('hashchange', updateActiveTarget);
+    updateActiveTarget();
+    return () => window.removeEventListener('hashchange', updateActiveTarget);
+  }, []);
+  return <aside className="dashboard-sidebar"><a className="sidebar-brand" href="#top"><span className="logo small">✦</span><span><strong>FamilyQuest</strong><small>{familyName}</small></span></a><nav className="sidebar-nav" aria-label="Hlavní navigace">{items.map((item) => <a className={activeTarget === item.target ? 'active' : ''} href={item.target} key={item.label}><span>{item.icon}</span>{item.label}</a>)}</nav><div className="sidebar-footer"><a className={activeTarget === '#profile' ? 'active' : ''} href="#profile"><span>◉</span> Profil</a><button onClick={onLogout}><span>↪</span> Odhlásit se</button><div className="sidebar-user"><span className="user-avatar">{user.avatar || user.full_name.charAt(0)}</span><span><strong>{user.full_name}</strong><small>{user.role === 'parent' ? 'Rodič' : 'Dobrodruh'}</small></span></div></div></aside>;
 }
 
 function MobileNav({ role }: { role: 'parent' | 'child' }) {
-  return <nav className="mobile-nav" aria-label="Mobilní navigace">{mobileItems.map((item, index) => <a className={index === 0 ? 'active' : ''} href={item.target} key={`${role}-${item.label}`}><span>{item.icon}</span><small>{item.label}</small></a>)}</nav>;
+  const [activeTarget, setActiveTarget] = useState(window.location.hash || '#top');
+  useEffect(() => {
+    const updateActiveTarget = () => setActiveTarget(window.location.hash || '#top');
+    window.addEventListener('hashchange', updateActiveTarget);
+    updateActiveTarget();
+    return () => window.removeEventListener('hashchange', updateActiveTarget);
+  }, []);
+  return <nav className="mobile-nav" aria-label="Mobilní navigace">{mobileItems.map((item) => <a className={activeTarget === item.target ? 'active' : ''} href={item.target} key={`${role}-${item.label}`}><span>{item.icon}</span><small>{item.label}</small></a>)}</nav>;
 }
 
 function ParentDashboard({ user, token, onLogout }: { user: User; token: string; onLogout: () => void }) {
