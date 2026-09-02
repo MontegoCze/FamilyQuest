@@ -38,3 +38,11 @@ class UserRead(BaseModel):
     is_active: bool = True
 
     model_config = {"from_attributes": True}
+
+
+class SwitchAccountResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    impersonated_user_id: str
+    impersonated_user_name: str
+    impersonated_by_user_id: str

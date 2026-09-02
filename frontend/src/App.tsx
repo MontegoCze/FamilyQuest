@@ -35,6 +35,15 @@ const navItems = [
   { label: 'Dobrodružství', icon: '◈', target: '#adventure' },
   { label: 'Statistiky', icon: '◒', target: '#stats' },
 ];
+const parentNavItems = [
+  { label: 'Dashboard', icon: '⌂', target: '#top' },
+  { label: 'Moje úkoly', icon: '✓', target: '#missions' },
+  { label: 'Správa účtů', icon: '👤', target: '#accounts' },
+  { label: 'Achievementy', icon: '♛', target: '#achievements' },
+  { label: 'Odměny', icon: '♢', target: '#rewards' },
+  { label: 'Dobrodružství', icon: '◈', target: '#adventure' },
+  { label: 'Statistiky', icon: '◒', target: '#stats' },
+];
 const mobileItems = [
   { label: 'Domů', icon: '⌂', target: '#top' },
   { label: 'Úkoly', icon: '✓', target: '#missions' },
@@ -83,7 +92,8 @@ function Dashboard({ user, token, onLogout }: { user: User; token: string; onLog
 }
 
 function DashboardSidebar({ user, familyName, onLogout }: { user: User; familyName: string; onLogout: () => void }) {
-  return <aside className="dashboard-sidebar"><a className="sidebar-brand" href="#top"><span className="logo small">✦</span><span><strong>FamilyQuest</strong><small>{familyName}</small></span></a><nav className="sidebar-nav" aria-label="Hlavní navigace">{navItems.map((item, index) => <a className={index === 0 ? 'active' : ''} href={item.target} key={item.label}><span>{item.icon}</span>{item.label}</a>)}</nav><div className="sidebar-footer"><a href="#profile"><span>◉</span> Profil</a><button onClick={onLogout}><span>↪</span> Odhlásit se</button><div className="sidebar-user"><span className="user-avatar">{user.avatar || user.full_name.charAt(0)}</span><span><strong>{user.full_name}</strong><small>{user.role === 'parent' ? 'Rodič' : 'Dobrodruh'}</small></span></div></div></aside>;
+  const items = user.role === 'parent' ? parentNavItems : navItems;
+  return <aside className="dashboard-sidebar"><a className="sidebar-brand" href="#top"><span className="logo small">✦</span><span><strong>FamilyQuest</strong><small>{familyName}</small></span></a><nav className="sidebar-nav" aria-label="Hlavní navigace">{items.map((item, index) => <a className={index === 0 ? 'active' : ''} href={item.target} key={item.label}><span>{item.icon}</span>{item.label}</a>)}</nav><div className="sidebar-footer"><a href="#profile"><span>◉</span> Profil</a><button onClick={onLogout}><span>↪</span> Odhlásit se</button><div className="sidebar-user"><span className="user-avatar">{user.avatar || user.full_name.charAt(0)}</span><span><strong>{user.full_name}</strong><small>{user.role === 'parent' ? 'Rodič' : 'Dobrodruh'}</small></span></div></div></aside>;
 }
 
 function MobileNav({ role }: { role: 'parent' | 'child' }) {
@@ -103,6 +113,8 @@ function ParentDashboard({ user, token, onLogout }: { user: User; token: string;
   const [family, setFamily] = useState<{ name: string } | null>(null);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [currentView, setCurrentView] = useState<'main' | 'accounts'>('main');
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [showMemberForm, setShowMemberForm] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<'all' | TaskCategory>('all');
@@ -264,5 +276,15 @@ function AccountManager({ token, members, currentUserId, onRefresh }: { token: s
     try { await request(`/family/accounts/${member.user_id}/status`, { method: 'PATCH', body: JSON.stringify({ is_active: member.is_active === false }) }, token); onRefresh(); }
     catch (err) { setError(err instanceof Error ? err.message : 'Stav účtu se nepodařilo změnit.'); }
   };
-  return <section className="panel accounts-panel"><div className="panel-heading"><div><p className="eyebrow">Účty a profily</p><h2>👤 Správa účtů</h2></div><span className="panel-icon purple">◉</span></div><div className="account-list">{members.map((member) => <article className="account-row" key={member.user_id}><span className="user-avatar child-avatar">{member.avatar || (member.full_name ?? '?').charAt(0)}</span><div><strong>{member.full_name ?? member.email}</strong><small>{member.role === 'parent' ? '👑 Rodič' : '🧒 Dítě'} · {member.is_active === false ? '🔴 Deaktivovaný' : '🟢 Aktivní'}</small></div><div className="member-actions"><button className="secondary compact" onClick={() => { setSelected(member); setError(''); }}>Spravovat</button>{member.user_id !== currentUserId && <button className="danger compact" onClick={() => changeStatus(member)}>{member.is_active === false ? 'Aktivovat' : 'Deaktivovat'}</button>}</div></article>)}</div>{selected && <form className="task-form account-edit-form" onSubmit={save}><h3>Upravit profil: {selected.full_name}</h3><input name="full_name" required minLength={2} defaultValue={selected.full_name} placeholder="Jméno" /><input name="avatar" maxLength={20} defaultValue={selected.avatar ?? ''} placeholder="Avatar" />{error && <p className="error">{error}</p>}<div className="form-actions"><button type="button" className="secondary" onClick={() => setSelected(null)}>Zrušit</button><button className="primary" type="submit">Uložit profil</button></div></form>}</section>;
+  const switchAccount = async (member: Member) => {
+    if (window.confirm(`Přepnout na účet ${member.full_name}?`)) {
+      try {
+        const response = await request<{ access_token: string }>(`/auth/switch/${member.user_id}`, { method: 'POST' }, token);
+        localStorage.setItem('familyquest_token', response.access_token);
+        window.location.reload();
+      }
+      catch (err) { setError(err instanceof Error ? err.message : 'Přepnutí se nepodařilo.'); }
+    }
+  };
+   return <section id="accounts" className="panel accounts-panel"><div className="panel-heading"><div><p className="eyebrow">Účty a profily</p><h2>👤 Správa účtů</h2></div><span className="panel-icon purple">◉</span></div><div className="account-list">{members.map((member) => <article className="account-row" key={member.user_id}><span className="user-avatar child-avatar">{member.avatar || (member.full_name ?? '?').charAt(0)}</span><div><strong>{member.full_name ?? member.email}</strong><small>{member.role === 'parent' ? '👑 Rodič' : '🧒 Dítě'} · {member.is_active === false ? '🔴 Deaktivovaný' : '🟢 Aktivní'}</small></div><div className="member-actions"><button className="secondary compact" onClick={() => { setSelected(member); setError(''); }}>Spravovat</button>{member.user_id !== currentUserId && member.is_active && member.role === 'child' && <button className="secondary compact" onClick={() => switchAccount(member)}>🔄 Přepnout</button>}{member.user_id !== currentUserId && <button className="danger compact" onClick={() => changeStatus(member)}>{member.is_active === false ? 'Aktivovat' : 'Deaktivovat'}</button>}</div></article>)}</div>{selected && <form className="task-form account-edit-form" onSubmit={save}><h3>Upravit profil: {selected.full_name}</h3><input name="full_name" required minLength={2} defaultValue={selected.full_name} placeholder="Jméno" /><input name="avatar" maxLength={20} defaultValue={selected.avatar ?? ''} placeholder="Avatar" />{error && <p className="error">{error}</p>}<div className="form-actions"><button type="button" className="secondary" onClick={() => setSelected(null)}>Zrušit</button><button className="primary" type="submit">Uložit profil</button></div></form>}</section>;
 }
