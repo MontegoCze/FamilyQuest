@@ -27,6 +27,8 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run build
+        env:
+          VITE_API_URL: https://familyquest-api-pkry.onrender.com/api/v1
       - run: npx cap sync android
       - name: Build debug APK
         working-directory: frontend/android
