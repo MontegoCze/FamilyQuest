@@ -14,9 +14,7 @@ services:
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
         value: "60"
       - key: DATABASE_URL
-        fromDatabase:
-          name: familyquest-db
-          property: connectionString
+        sync: false
       - key: BACKEND_CORS_ORIGINS
         value: '["https://familyquest-web-pkry.onrender.com","https://familyquest-web-lacv.onrender.com","https://familyquest-web.onrender.com"]'
 
@@ -28,7 +26,3 @@ services:
     envVars:
       - key: VITE_API_URL
         value: https://familyquest-api-ic5m.onrender.com/api/v1
-
-databases:
-  - name: familyquest-db
-    plan: free
