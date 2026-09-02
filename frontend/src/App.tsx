@@ -49,7 +49,6 @@ const parentNavItems = [
   { label: 'Dashboard', icon: '⌂', target: '#top' },
   { label: 'Statistiky', icon: '◒', target: '#stats' },
   { label: 'Moje úkoly', icon: '✓', target: '#missions' },
-  { label: 'Správa účtů', icon: '👤', target: '#accounts' },
   { label: 'Achievementy', icon: '♛', target: '#achievements' },
   { label: 'Odměny', icon: '♢', target: '#rewards' },
   { label: 'Dobrodružství', icon: '◈', target: '#adventure' },
@@ -153,7 +152,7 @@ function DashboardSidebar({ user, familyName, onLogout }: { user: User; familyNa
     updateActiveTarget();
     return () => window.removeEventListener('hashchange', updateActiveTarget);
   }, []);
-  return <aside className="dashboard-sidebar"><a className="sidebar-brand" href="#top"><span className="logo small">✦</span><span><strong>FamilyQuest</strong><small>{familyName}</small></span></a><nav className="sidebar-nav" aria-label="Hlavní navigace">{items.map((item) => <a className={activeTarget === item.target ? 'active' : ''} href={item.target} key={item.label}><span>{item.icon}</span>{item.label}</a>)}</nav><div className="sidebar-footer"><a className={activeTarget === '#profile' ? 'active' : ''} href="#profile"><span>◉</span> Profil</a><button onClick={onLogout}><span>↪</span> Odhlásit se</button><div className="sidebar-user"><span className="user-avatar">{user.avatar || user.full_name.charAt(0)}</span><span><strong>{user.full_name}</strong><small>{user.role === 'parent' ? 'Rodič' : 'Dobrodruh'}</small></span></div></div></aside>;
+  return <aside className="dashboard-sidebar"><a className="sidebar-brand" href="#top"><span className="logo small">✦</span><span><strong>FamilyQuest</strong><small>{familyName}</small></span></a><nav className="sidebar-nav" aria-label="Hlavní navigace">{items.map((item) => <a className={activeTarget === item.target ? 'active' : ''} href={item.target} key={item.label}><span>{item.icon}</span>{item.label}</a>)}</nav><div className="sidebar-footer">{user.role === 'parent' && <a className={activeTarget === '#accounts' ? 'active' : ''} href="#accounts"><span>👤</span> Správa účtů</a>}<a className={activeTarget === '#profile' ? 'active' : ''} href="#profile"><span>◉</span> Profil</a><button onClick={onLogout}><span>↪</span> Odhlásit se</button><div className="sidebar-user"><span className="user-avatar">{user.avatar || user.full_name.charAt(0)}</span><span><strong>{user.full_name}</strong><small>{user.role === 'parent' ? 'Rodič' : 'Dobrodruh'}</small></span></div></div></aside>;
 }
 
 function MobileNav({ role }: { role: 'parent' | 'child' }) {
