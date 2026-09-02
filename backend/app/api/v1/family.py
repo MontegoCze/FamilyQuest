@@ -11,7 +11,8 @@ from app.database import get_db
 from app.models.familyquest import FamilyInvitation, FamilyMember, User, UserRole
 from app.schemas.family import (
     FamilyCreate, FamilyInvitationCreate, FamilyInvitationRead, FamilyMemberCreate, FamilyMemberRead,
-    FamilyMemberUpdate, FamilyRead,
+    FamilyMemberUpdate, FamilyAccountPasswordUpdate, FamilyAccountRoleUpdate,
+    FamilyAccountStatusUpdate, FamilyRead,
 )
 
 router = APIRouter()
@@ -45,8 +46,21 @@ def list_members(
     family = get_family_for_user(db, current_user.id)
     if not family:
         raise HTTPException(status_code=404, detail="Family not found for this user.")
-    members = list_family_members(db, family.id)
+    members = list_family_members(db, family.id, include_inactive=current_user.role == UserRole.parent.value)
     return members
+
+
+@router.get("/accounts", response_model=list[FamilyMemberRead])
+def list_accounts(current_user: User = Depends(require_parent), db: Session = Depends(get_db)):
+    family = get_family_for_user(db, current_user.id)
+    if not family:
+        raise HTTPException(status_code=404, detail="Family not found.")
+    return list_family_members(db, family.id, include_inactive=True)
+
+
+@router.get("/accounts/{user_id}", response_model=FamilyMemberRead)
+def get_account(user_id: str, current_user: User = Depends(require_parent), db: Session = Depends(get_db)):
+    return get_member(user_id, current_user, db)
 
 
 @router.get("/members/{user_id}", response_model=FamilyMemberRead)
@@ -86,6 +100,11 @@ def add_member(payload: FamilyMemberCreate, current_user: User = Depends(require
     db.commit()
     db.refresh(member)
     return member
+
+
+@router.post("/accounts", response_model=FamilyMemberRead, status_code=status.HTTP_201_CREATED)
+def add_account(payload: FamilyMemberCreate, current_user: User = Depends(require_parent), db: Session = Depends(get_db)):
+    return add_member(payload, current_user, db)
 
 
 @router.post("/invitations", response_model=FamilyInvitationRead, status_code=status.HTTP_201_CREATED)
@@ -144,6 +163,90 @@ def update_member(user_id: str, payload: FamilyMemberUpdate, current_user: User 
         member.user.avatar = payload.avatar.strip()
     db.commit()
     db.refresh(member)
+    return member
+
+
+@router.patch("/accounts/{user_id}", response_model=FamilyMemberRead)
+def update_account(user_id: str, payload: FamilyMemberUpdate, current_user: User = Depends(require_parent), db: Session = Depends(get_db)):
+    return update_member(user_id, payload, current_user, db)
+
+
+@router.post("/accounts/{user_id}/reset-password", status_code=status.HTTP_204_NO_CONTENT)
+def reset_account_password(
+    user_id: str,
+    payload: FamilyAccountPasswordUpdate,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+):
+    family = get_family_for_user(db, current_user.id)
+    member = db.query(FamilyMember).filter(
+        FamilyMember.family_id == family.id if family else "", FamilyMember.user_id == user_id
+    ).first() if family else None
+    if not member or not member.user.is_active:
+        raise HTTPException(status_code=404, detail="Family member not found.")
+    member.user.password_hash = get_password_hash(payload.password)
+    db.commit()
+
+
+@router.patch("/accounts/{user_id}/status", response_model=FamilyMemberRead)
+def update_account_status(
+    user_id: str,
+    payload: FamilyAccountStatusUpdate,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+):
+    family = get_family_for_user(db, current_user.id)
+    member = db.query(FamilyMember).filter(
+        FamilyMember.family_id == family.id if family else "", FamilyMember.user_id == user_id
+    ).first() if family else None
+    if not member:
+        raise HTTPException(status_code=404, detail="Family member not found.")
+    if member.user_id == current_user.id and not payload.is_active:
+        raise HTTPException(status_code=400, detail="You cannot deactivate your own account.")
+    if member.role == UserRole.parent.value and not payload.is_active and db.query(FamilyMember).join(User).filter(
+        FamilyMember.family_id == family.id, FamilyMember.role == UserRole.parent.value,
+        User.is_active.is_(True),
+    ).count() <= 1:
+        raise HTTPException(status_code=400, detail="The family must have at least one active parent.")
+    member.user.is_active = payload.is_active
+    db.commit()
+    db.refresh(member)
+    return member
+
+
+@router.patch("/accounts/{user_id}/role", response_model=FamilyMemberRead)
+def update_account_role(
+    user_id: str,
+    payload: FamilyAccountRoleUpdate,
+    current_user: User = Depends(require_parent),
+    db: Session = Depends(get_db),
+):
+    family = get_family_for_user(db, current_user.id)
+    member = db.query(FamilyMember).filter(
+        FamilyMember.family_id == family.id if family else "", FamilyMember.user_id == user_id
+    ).first() if family else None
+    if not member or not member.user.is_active:
+        raise HTTPException(status_code=404, detail="Family member not found.")
+    if member.user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="You cannot change your own role.")
+    if member.role == UserRole.parent.value and payload.role == UserRole.child.value and db.query(FamilyMember).join(User).filter(
+        FamilyMember.family_id == family.id, FamilyMember.role == UserRole.parent.value,
+        User.is_active.is_(True),
+    ).count() <= 1:
+        raise HTTPException(status_code=400, detail="The family must have at least one active parent.")
+    member.role = payload.role
+    member.user.role = payload.role
+    db.commit()
+    db.refresh(member)
+    return member
+
+
+@router.get("/accounts/{user_id}/preview", response_model=FamilyMemberRead)
+def preview_account(user_id: str, current_user: User = Depends(require_parent), db: Session = Depends(get_db)):
+    """Validate family scope for a read-only child preview without impersonating."""
+    member = get_member(user_id, current_user, db)
+    if member.role != UserRole.child.value:
+        raise HTTPException(status_code=400, detail="Only child accounts can be previewed.")
     return member
 
 

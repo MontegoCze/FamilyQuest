@@ -23,10 +23,8 @@ def get_family_for_user(db: Session, user_id: str):
     return db.query(Family).filter(Family.id == member.family_id).first()
 
 
-def list_family_members(db: Session, family_id: str):
-    return (
-        db.query(FamilyMember)
-        .join(User)
-        .filter(FamilyMember.family_id == family_id, User.is_active.is_(True))
-        .all()
-    )
+def list_family_members(db: Session, family_id: str, *, include_inactive: bool = False):
+    query = db.query(FamilyMember).join(User).filter(FamilyMember.family_id == family_id)
+    if not include_inactive:
+        query = query.filter(User.is_active.is_(True))
+    return query.all()

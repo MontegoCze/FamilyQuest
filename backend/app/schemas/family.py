@@ -39,6 +39,18 @@ class FamilyMemberUpdate(BaseModel):
     avatar: str | None = Field(default=None, max_length=20)
 
 
+class FamilyAccountPasswordUpdate(BaseModel):
+    password: str = Field(..., min_length=8, max_length=128)
+
+
+class FamilyAccountStatusUpdate(BaseModel):
+    is_active: bool
+
+
+class FamilyAccountRoleUpdate(BaseModel):
+    role: str = Field(..., pattern="^(child|parent)$")
+
+
 class FamilyInvitationCreate(BaseModel):
     full_name: str = Field(..., min_length=2, max_length=120)
     email: str = Field(..., min_length=3, max_length=255)

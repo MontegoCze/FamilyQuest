@@ -116,3 +116,36 @@ def test_adventure_points_are_family_scoped_and_read_only_for_children(client: T
         ("Les", "current"),
     ]
     assert client.post("/api/v1/adventure/points", headers=child_headers, json={"title": "Nope"}).status_code == 403
+
+
+def test_parent_can_manage_family_accounts_without_deleting_history(client: TestClient):
+    parent_headers = auth(client, "accounts-parent@example.com", "Parent")
+    assert client.post("/api/v1/family", headers=parent_headers, json={"name": "Accounts"}).status_code == 201
+    child = client.post(
+        "/api/v1/family/accounts",
+        headers=parent_headers,
+        json={"role": "child", "full_name": "Kid", "password": "password123"},
+    ).json()
+    assert client.get(f"/api/v1/family/accounts/{child['user_id']}/preview", headers=parent_headers).status_code == 200
+    assert client.patch(
+        f"/api/v1/family/accounts/{child['user_id']}",
+        headers=parent_headers,
+        json={"full_name": "Updated Kid", "avatar": "🐉"},
+    ).status_code == 200
+    assert client.post(
+        f"/api/v1/family/accounts/{child['user_id']}/reset-password",
+        headers=parent_headers,
+        json={"password": "newpassword123"},
+    ).status_code == 204
+    assert client.patch(
+        f"/api/v1/family/accounts/{child['user_id']}/status",
+        headers=parent_headers,
+        json={"is_active": False},
+    ).status_code == 200
+    accounts = client.get("/api/v1/family/accounts", headers=parent_headers).json()
+    assert any(account["user_id"] == child["user_id"] and not account["is_active"] for account in accounts)
+    assert client.patch(
+        f"/api/v1/family/accounts/{child['user_id']}/status",
+        headers=parent_headers,
+        json={"is_active": True},
+    ).status_code == 200
