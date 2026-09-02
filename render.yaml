@@ -16,7 +16,7 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: BACKEND_CORS_ORIGINS
-        value: '["https://familyquest-web-pkry.onrender.com","https://familyquest-web-lacv.onrender.com","https://familyquest-web.onrender.com"]'
+        value: '["https://familyquest-web-pkry.onrender.com","https://familyquest-web-lacv.onrender.com","https://familyquest-web.onrender.com","http://localhost","https://localhost","capacitor://localhost"]'
       - key: FRONTEND_URL
         value: https://familyquest-web-pkry.onrender.com
       - key: SMTP_HOST

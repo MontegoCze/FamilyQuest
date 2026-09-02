@@ -11,7 +11,13 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
     database_url: str = "sqlite:///./familyquest.db"
-    backend_cors_origins: List[str] = ["http://localhost:5173", "http://localhost:3000"]
+    backend_cors_origins: List[str] = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://localhost",
+        "https://localhost",
+        "capacitor://localhost",
+    ]
     frontend_url: str = "http://localhost:5173"
     smtp_host: str = ""
     smtp_port: int = 587
