@@ -37,4 +37,4 @@ services:
     staticPublishPath: frontend/dist
     envVars:
       - key: VITE_API_URL
-        value: https://familyquest-api-ic5m.onrender.com/api/v1
+        value: https://familyquest-api-pkry.onrender.com/api/v1
