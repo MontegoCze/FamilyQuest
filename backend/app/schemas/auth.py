@@ -19,6 +19,11 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8)
 
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: EmailStr) -> str:
+        return str(value).strip().lower()
+
 
 class UserAvatarUpdate(BaseModel):
     avatar: str = Field(..., min_length=1, max_length=20)

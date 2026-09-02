@@ -49,6 +49,21 @@ def auth(client: TestClient, email: str, name: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
+def test_login_normalizes_email_case_and_whitespace(client: TestClient):
+    client.post(
+        "/api/v1/auth/register",
+        json={"email": "parent@example.com", "password": "password123", "full_name": "Parent"},
+    )
+
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": "  PARENT@EXAMPLE.COM ", "password": "password123"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["access_token"]
+
+
 def test_task_completion_requires_assignment_and_awards_xp(client: TestClient):
     parent_headers = auth(client, "parent@example.com", "Parent")
     assert client.post("/api/v1/family", headers=parent_headers, json={"name": "Home"}).status_code == 201
