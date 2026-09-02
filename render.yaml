@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: familyquest-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: alembic -c database/alembic.ini upgrade head && uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "60"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: familyquest-db
+          property: connectionString
+      - key: BACKEND_CORS_ORIGINS
+        value: '["https://familyquest-web.onrender.com"]'
+
+  - type: static
+    name: familyquest-web
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: frontend/dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://familyquest-api.onrender.com/api/v1
+
+databases:
+  - name: familyquest-db
+    plan: free
