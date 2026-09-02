@@ -41,17 +41,17 @@ const navItems = [
   { label: 'Dashboard', icon: '⌂', target: '#top' },
   { label: 'Statistiky', icon: '◒', target: '#stats' },
   { label: 'Moje úkoly', icon: '✓', target: '#missions' },
+  { label: 'Dobrodružství', icon: '◈', target: '#adventure' },
   { label: 'Achievementy', icon: '♛', target: '#achievements' },
   { label: 'Odměny', icon: '♢', target: '#rewards' },
-  { label: 'Dobrodružství', icon: '◈', target: '#adventure' },
 ];
 const parentNavItems = [
   { label: 'Dashboard', icon: '⌂', target: '#top' },
   { label: 'Statistiky', icon: '◒', target: '#stats' },
   { label: 'Moje úkoly', icon: '✓', target: '#missions' },
+  { label: 'Dobrodružství', icon: '◈', target: '#adventure' },
   { label: 'Achievementy', icon: '♛', target: '#achievements' },
   { label: 'Odměny', icon: '♢', target: '#rewards' },
-  { label: 'Dobrodružství', icon: '◈', target: '#adventure' },
 ];
 const mobileItems = [
   { label: 'Domů', icon: '⌂', target: '#top' },
