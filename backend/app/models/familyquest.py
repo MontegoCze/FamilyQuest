@@ -77,6 +77,7 @@ class FamilyMember(Base):
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
     role = Column(String(20), default=UserRole.child.value, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     family = relationship("Family", back_populates="members")
     user = relationship("User", back_populates="memberships")
@@ -89,7 +90,32 @@ class FamilyMember(Base):
     def email(self) -> str:
         return self.user.email
 
+    @property
+    def avatar(self) -> str | None:
+        return self.user.avatar
+
+    @property
+    def is_active(self) -> bool:
+        return self.user.is_active
+
     __table_args__ = (UniqueConstraint("family_id", "user_id", name="uq_family_member"),)
+
+
+class FamilyInvitation(Base):
+    __tablename__ = "family_invitations"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
+    family_id = Column(String(36), ForeignKey("families.id"), nullable=False)
+    invited_email = Column(String(255), nullable=False, index=True)
+    invited_name = Column(String(255), nullable=False)
+    token = Column(String(128), unique=True, nullable=False, index=True)
+    status = Column(String(20), default="pending", nullable=False)
+    created_by = Column(String(36), ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+
+    family = relationship("Family")
+    inviter = relationship("User")
 
 
 class Task(Base):
