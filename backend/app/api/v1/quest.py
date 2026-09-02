@@ -279,6 +279,32 @@ def adventure_read(
     ))
     level = xp // 100 + 1
     query = db.query(AdventurePoint).filter(AdventurePoint.family_id == family_id)
+    if not query.first():
+        defaults = [
+            ("Zahájení cesty", "Vydej se na svou první výpravu.", "🏠", 14, 82, 0, 0, 50),
+            ("První krůčky", "Každý splněný úkol tě posune dál.", "🌱", 28, 68, 50, 50, 75),
+            ("Tajná jeskyně", "Objev skryté místo na své mapě.", "🪨", 20, 48, 100, 100, 100),
+            ("Lesní průsmyk", "Projdi kouzelným lesem.", "🌲", 44, 55, 250, 250, 125),
+            ("Vodopád odvahy", "Překonej další velkou výzvu.", "💧", 64, 38, 500, 500, 150),
+            ("Strážce hor", "Jsi blízko vrcholu své cesty.", "🏔️", 49, 22, 750, 750, 200),
+            ("Rodinný hrad", "Cílový bod společné výpravy.", "🏰", 80, 14, 1000, 1000, 250),
+        ]
+        db.add_all([
+            AdventurePoint(
+                family_id=family_id,
+                title=title,
+                description=description,
+                icon=icon,
+                position_x=position_x,
+                position_y=position_y,
+                order_index=order_index,
+                required_xp=required_xp,
+                reward_xp=reward_xp,
+            )
+            for title, description, icon, position_x, position_y, order_index, required_xp, reward_xp in defaults
+        ])
+        db.commit()
+        query = db.query(AdventurePoint).filter(AdventurePoint.family_id == family_id)
     if not include_inactive:
         query = query.filter(AdventurePoint.is_active.is_(True))
     points = query.order_by(AdventurePoint.order_index, AdventurePoint.created_at).all()
