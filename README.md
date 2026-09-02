@@ -66,7 +66,7 @@ After registration, use the created email and password. Phase 1 does not ship pr
 ## Notes
 
 - The default database URL is SQLite for ease of local development.
-- For production, configure PostgreSQL in your environment.
+- Render is configured with SQLite for the free tier. Its filesystem is ephemeral, so use a managed PostgreSQL database when data must survive redeploys or restarts.
 
 ## Deployment on GitHub + Render
 
@@ -74,11 +74,10 @@ The repository includes [`render.yaml`](./render.yaml), which defines:
 
 - `familyquest-api` – FastAPI Web Service
 - `familyquest-web` – React Static Site
-- `familyquest-db` – PostgreSQL
 
 1. Push this existing repository to GitHub.
 2. In Render select **New > Blueprint** and connect the GitHub repository.
-3. Render will create the two services and the PostgreSQL database from `render.yaml`.
+3. Render will create the API and static site from `render.yaml`.
 4. If you use a custom frontend domain, update `BACKEND_CORS_ORIGINS` on `familyquest-api` to a JSON array containing that exact `https://` URL.
 5. Redeploy the API after changing environment variables.
 

@@ -16,7 +16,7 @@ services:
       - key: DATABASE_URL
         value: sqlite:///./familyquest.db
       - key: BACKEND_CORS_ORIGINS
-        value: '["https://familyquest-web.onrender.com"]'
+        value: '["https://familyquest-web-lacv.onrender.com","https://familyquest-web.onrender.com"]'
 
   - type: web
     name: familyquest-web

@@ -74,6 +74,7 @@ export default function App() {
 }
 
 function AuthScreen({ mode, setMode, onLogin, error, setError }: { mode: 'login' | 'register'; setMode: (mode: 'login' | 'register') => void; onLogin: (token: string, user: User) => void; error: string; setError: (value: string) => void }) {
+  const [showPassword, setShowPassword] = useState(false);
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault(); setError('');
     const form = new FormData(event.currentTarget);
@@ -84,7 +85,46 @@ function AuthScreen({ mode, setMode, onLogin, error, setError }: { mode: 'login'
       onLogin(login.access_token, await request<User>('/auth/me', {}, login.access_token));
     } catch (err) { setError(err instanceof Error ? err.message : 'Přihlášení se nezdařilo.'); }
   };
-  return <main className="auth-layout"><section className="brand-panel"><div className="logo">✦</div><p className="eyebrow">FamilyQuest</p><h1>Každý úkol je malé dobrodružství.</h1><p>Proměňte domácí povinnosti v týmovou hru plnou odměn.</p><div className="brand-pills"><span>✓ Společně</span><span>✦ S radostí</span></div></section><section className="auth-card"><p className="eyebrow">Vítejte zpět</p><h2>{mode === 'login' ? 'Přihlaste se do rodiny' : 'Vytvořte účet rodiče'}</h2><form onSubmit={submit}>{mode === 'register' && <label>Jméno<input name="full_name" required minLength={2} autoComplete="name" /></label>}<label>E-mail<input name="email" type="email" required autoComplete="email" /></label><label>Heslo<input name="password" type="password" required minLength={8} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} /></label>{error && <p className="error">{error}</p>}<button className="primary" type="submit">{mode === 'login' ? 'Přihlásit se' : 'Zaregistrovat se'}</button></form><button className="link-button" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); }}>{mode === 'login' ? 'Nemáte účet? Zaregistrujte se' : 'Už účet máte? Přihlaste se'}</button></section></main>;
+  return <main className="auth-layout">
+    <section className="brand-panel">
+      <div className="brand-lockup">
+        <svg className="brand-mark" viewBox="0 0 180 180" role="img" aria-label="FamilyQuest logo">
+          <defs><linearGradient id="mark-gradient" x1="20%" y1="0%" x2="80%" y2="100%"><stop stopColor="#ce6bff" /><stop offset="1" stopColor="#5b2ce8" /></linearGradient></defs>
+          <path fill="url(#mark-gradient)" d="M90 11 22 69v39c0 5 3 10 8 12l60 38 60-38c5-2 8-7 8-12V69L90 11Z" />
+          <path fill="#0b082b" d="m90 39-45 38v22l45 29 45-29V77L90 39Z" />
+          <g fill="url(#mark-gradient)"><circle cx="61" cy="82" r="17" /><circle cx="119" cy="82" r="17" /><circle cx="90" cy="101" r="12" /><path d="M32 119c0-19 12-31 28-31s28 12 28 31l-28 22-28-22Zm60 0c0-19 12-31 28-31s28 12 28 31l-28 22-28-22Z" /></g>
+          <path fill="#0b082b" d="m90 150-21-18c-19-16-17-33-4-40 11-6 21 1 25 10 4-9 14-16 25-10 13 7 15 24-4 40l-21 18Z" />
+          <g fill="#ce6bff"><rect x="78" y="53" width="8" height="8" rx="1" /><rect x="94" y="53" width="8" height="8" rx="1" /><rect x="78" y="65" width="8" height="8" rx="1" /><rect x="94" y="65" width="8" height="8" rx="1" /></g>
+        </svg>
+        <strong>FamilyQuest</strong>
+        <span>ÚKOLY. ORGANIZACE. RODINA.</span>
+      </div>
+    </section>
+    <section className="auth-stage">
+      <div className="auth-intro">
+        <svg className="intro-mark" viewBox="0 0 90 90" aria-hidden="true"><path fill="#5c35df" d="M45 5 15 31v25c0 3 2 6 5 8l25 15 25-15c3-2 5-5 5-8V31L45 5Z" /><path fill="#fff" d="m45 20-19 16v14l19 11 19-11V36L45 20Z" /><circle cx="35" cy="40" r="5" fill="#5c35df" /><circle cx="55" cy="40" r="5" fill="#5c35df" /><path fill="#5c35df" d="M45 48c-8 0-15 6-15 13l15 9 15-9c0-7-7-13-15-13Z" /></svg>
+        <h1>Každý úkol<br />je malé<br /><em>dobrodružství.</em></h1>
+        <p className="intro-lead">Proměňte domácí povinnosti<br />v týmovou hru plnou odměn.</p>
+        <div className="feature-list">
+          <div className="feature-item"><span className="feature-icon">♟</span><div><strong>Společně</strong><small>Zapojíte celou rodinu<br />a spolupracujete.</small></div></div>
+          <div className="feature-item"><span className="feature-icon">★</span><div><strong>S radostí</strong><small>Motivujte a odměňujte<br />za každý úspěch.</small></div></div>
+        </div>
+      </div>
+      <section className="auth-card">
+        <p className="eyebrow">Vítejte zpět</p>
+        <h2>{mode === 'login' ? <>Přihlaste se<br />do rodiny</> : 'Vytvořte účet rodiče'}</h2>
+        <form onSubmit={submit}>
+          {mode === 'register' && <label>Jméno<input name="full_name" required minLength={2} autoComplete="name" /></label>}
+          <label>E-mail<input name="email" type="email" placeholder="zadejte svůj e-mail" required autoComplete="email" /></label>
+          <label>Heslo<span className="password-field"><input name="password" type={showPassword ? 'text' : 'password'} placeholder="zadejte své heslo" required minLength={8} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} /><button type="button" className="password-toggle" aria-label={showPassword ? 'Skrýt heslo' : 'Zobrazit heslo'} onClick={() => setShowPassword(!showPassword)}>{showPassword ? '◉' : '◌'}</button></span></label>
+          {error && <p className="error">{error}</p>}
+          <button className="primary" type="submit">{mode === 'login' ? 'Přihlásit se' : 'Zaregistrovat se'}</button>
+        </form>
+        <button className="link-button" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); }}>{mode === 'login' ? 'Nemáte účet? Zaregistrujte se' : 'Už účet máte? Přihlaste se'}</button>
+      </section>
+      <div className="landscape" aria-hidden="true"><div className="sunset-hill hill-back" /><div className="sunset-hill hill-mid" /><div className="sunset-hill hill-front" /><div className="house"><i /><b /><span /></div><div className="road" /></div>
+    </section>
+  </main>;
 }
 
 function Dashboard({ user, token, onLogout }: { user: User; token: string; onLogout: () => void }) {
