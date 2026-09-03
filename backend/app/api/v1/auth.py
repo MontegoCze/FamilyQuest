@@ -5,8 +5,8 @@ from app.api.deps import get_current_user, require_parent, get_current_user_with
 from app.core.security import create_access_token, get_password_hash, verify_password
 from app.crud.user import create_user, get_user_by_email
 from app.database import get_db
-from app.models.familyquest import User, UserRole, FamilyMember
-from app.schemas.auth import Token, UserAvatarUpdate, UserLogin, UserRead, UserRegister, SwitchAccountResponse
+from app.models.familyquest import PushToken, User, UserRole, FamilyMember
+from app.schemas.auth import PushTokenUpsert, Token, UserAvatarUpdate, UserLogin, UserRead, UserRegister, SwitchAccountResponse
 
 router = APIRouter()
 
@@ -52,6 +52,21 @@ def update_current_user(
     db.commit()
     db.refresh(current_user)
     return current_user
+
+
+@router.post("/push-token", status_code=status.HTTP_204_NO_CONTENT)
+def register_push_token(
+    payload: PushTokenUpsert,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    push_token = db.query(PushToken).filter(PushToken.token == payload.token).first()
+    if push_token:
+        push_token.user_id = current_user.id
+        push_token.platform = payload.platform
+    else:
+        db.add(PushToken(user_id=current_user.id, token=payload.token, platform=payload.platform))
+    db.commit()
 
 
 @router.post("/switch/{user_id}", response_model=SwitchAccountResponse)

@@ -29,6 +29,11 @@ class UserAvatarUpdate(BaseModel):
     avatar: str = Field(..., min_length=1, max_length=20)
 
 
+class PushTokenUpsert(BaseModel):
+    token: str = Field(..., min_length=10, max_length=512)
+    platform: Literal["android", "ios", "web"] = "android"
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"

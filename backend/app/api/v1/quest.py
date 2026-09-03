@@ -37,6 +37,7 @@ from app.models.familyquest import (
     UserStat,
     XPTransaction,
 )
+from app.push import queue_notification_push
 from app.schemas.quest import (
     AchievementCreate,
     AchievementRead,
@@ -108,6 +109,7 @@ def child_ids(db: Session, family_id: str, ids: list[str]) -> list[str]:
 
 def notify(db: Session, user_id: str, kind: str, title: str, message: str) -> None:
     db.add(Notification(user_id=user_id, type=kind, title=title, message=message))
+    queue_notification_push(db, user_id, title, message)
 
 
 def get_task(db: Session, family_id: str, task_id: str) -> Task:

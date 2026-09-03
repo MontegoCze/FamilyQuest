@@ -1,4 +1,6 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { PushNotifications } from '@capacitor/push-notifications';
 
 const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api/v1';
 type User = { id: string; email: string; full_name: string; role: 'parent' | 'child'; avatar?: string };
@@ -124,12 +126,15 @@ function useRealtimeSync(onChange: () => Promise<void>) {
               processedEvents.add(message.event_id);
               if (processedEvents.size > 100) processedEvents.delete(processedEvents.values().next().value as string);
             }
+
             window.dispatchEvent(new CustomEvent('familyquest:realtime'));
             onChangeRef.current().catch(() => undefined);
           }
+
         } catch {
           // Keep the connection alive if a proxy sends a non-JSON message.
         }
+
       };
       socket.onclose = () => {
         if (!stopped) {
@@ -141,6 +146,38 @@ function useRealtimeSync(onChange: () => Promise<void>) {
     connect();
     return () => { stopped = true; window.clearTimeout(reconnectTimer); socket?.close(); };
   }, []);
+}
+
+function usePushNotifications(token: string | null) {
+  useEffect(() => {
+    if (!token || !Capacitor.isNativePlatform()) return;
+    let active = true;
+    const setup = async () => {
+      let permission = await PushNotifications.checkPermissions();
+      if (permission.receive !== 'granted') permission = await PushNotifications.requestPermissions();
+      if (!active || permission.receive !== 'granted') return;
+      await PushNotifications.createChannel({
+        id: 'familyquest',
+        name: 'FamilyQuest',
+        description: 'Oznámení o změnách v rodině',
+        importance: 5,
+        visibility: 1,
+        sound: 'default',
+      });
+      await PushNotifications.register();
+    };
+    const registration = PushNotifications.addListener('registration', ({ value }) => {
+      request('/auth/push-token', {
+        method: 'POST',
+        body: JSON.stringify({ token: value, platform: 'android' }),
+      }, token).catch(() => undefined);
+    });
+    setup().catch(() => undefined);
+    return () => {
+      active = false;
+      registration.then((listener) => listener.remove());
+    };
+  }, [token]);
 }
 
 function PullToRefreshIndicator({ pullDistance, isRefreshing }: { pullDistance: number; isRefreshing: boolean }) {
@@ -252,6 +289,7 @@ export default function App() {
     if (!token) return;
     request<User>('/auth/me', {}, token).then(setUser).catch(() => { localStorage.removeItem('familyquest_token'); setToken(null); }).finally(() => setLoading(false));
   }, [token]);
+  usePushNotifications(token);
 
   const signOut = () => { localStorage.removeItem('familyquest_token'); setToken(null); setUser(null); };
   const completeLogin = (nextToken: string, nextUser: User) => { localStorage.setItem('familyquest_token', nextToken); setToken(nextToken); setUser(nextUser); };

@@ -67,6 +67,20 @@ class User(Base):
     reward_redemptions = relationship("RewardRedemption", back_populates="user")
     xp_transactions = relationship("XPTransaction", back_populates="user")
     user_achievements = relationship("UserAchievement", back_populates="user")
+    push_tokens = relationship("PushToken", back_populates="user", cascade="all, delete-orphan")
+
+
+class PushToken(Base):
+    __tablename__ = "push_tokens"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    token = Column(String(512), unique=True, nullable=False)
+    platform = Column(String(20), nullable=False, default="android")
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    user = relationship("User", back_populates="push_tokens")
 
 
 class FamilyMember(Base):

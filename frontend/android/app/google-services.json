@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "156222070443",
+    "project_id": "familyquest-ba31e",
+    "storage_bucket": "familyquest-ba31e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:156222070443:android:46a313c3832967053ea1ee",
+        "android_client_info": {
+          "package_name": "com.familyquest.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC4a67MV9vJFl2yAvm6cHcHMbc8eZ8dOWM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
