@@ -28,6 +28,7 @@ function CategoryBadge({ category }: { category?: string }) { const item = categ
 async function request<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
   const response = await fetch(`${API}${path}`, {
     ...options,
+    cache: options.method && options.method !== 'GET' ? options.cache : 'no-store',
     headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
   });
   if (!response.ok) {
@@ -408,6 +409,17 @@ function ChildDashboard({ user, token, onLogout }: { user: User; token: string; 
     } catch (err) { setNotice(err instanceof Error ? err.message : 'Nepodařilo se načíst mise.'); } finally { dataLoadingRef.current = false; setLoading(false); }
   };
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') load();
+    };
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    window.addEventListener('pageshow', refreshWhenVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+      window.removeEventListener('pageshow', refreshWhenVisible);
+    };
+  }, []);
   const pullRefresh = usePullToRefresh(load);
   const finish = async (task: Task) => { try { await request(`/tasks/${task.id}/complete`, { method: 'POST', body: JSON.stringify({}) }, token); await load(); setNotice(`Mise „${task.title}“ byla odeslána rodičům ke schválení.`); } catch (err) { setNotice(err instanceof Error ? err.message : 'Misi se nepodařilo dokončit.'); await load(); } };
   const redeem = async (reward: Reward) => { try { await request(`/rewards/${reward.id}/redeem`, { method: 'POST', body: JSON.stringify({}) }, token); setNotice(`Žádost o odměnu „${reward.name}“ čeká na schválení.`); } catch (err) { setNotice(err instanceof Error ? err.message : 'Odměnu se nepodařilo vyzvednout.'); } };

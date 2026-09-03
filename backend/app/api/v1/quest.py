@@ -567,7 +567,7 @@ def complete_task(task_id: str, payload: CompletionCreate, current_user: User = 
     else:
         for member in db.query(FamilyMember).filter(FamilyMember.family_id == family.id, FamilyMember.role == "parent").all():
             if member.user_id != current_user.id:
-                notify(db, member.user_id, "completion", "Task ready for review", f"{current_user.full_name} completed {task.title}.")
+                notify(db, member.user_id, "completion", "Úkol čeká na schválení", f"{current_user.full_name} dokončil(a) úkol {task.title}.")
     db.commit()
     db.refresh(completion)
     return completion
