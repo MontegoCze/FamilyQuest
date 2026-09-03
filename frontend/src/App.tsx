@@ -63,6 +63,39 @@ const mobileItems = [
 ];
 const achievementRatio = (item: Achievement) => item.progress / Math.max(1, Number(item.requirement?.match(/\d+/)?.[0] ?? 1));
 
+function useActiveSection(targets: string[]) {
+  const [activeTarget, setActiveTarget] = useState(window.location.hash || '#top');
+  const targetKey = targets.join('|');
+
+  useEffect(() => {
+    let frame = 0;
+    const update = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const sections = targets
+          .map((target) => document.querySelector<HTMLElement>(target))
+          .filter((section): section is HTMLElement => Boolean(section));
+        const threshold = window.innerHeight * 0.35;
+        const current = sections
+          .filter((section) => section.getBoundingClientRect().top <= threshold)
+          .sort((a, b) => b.getBoundingClientRect().top - a.getBoundingClientRect().top)[0];
+        if (current) setActiveTarget(`#${current.id}`);
+        else setActiveTarget(window.location.hash || '#top');
+      });
+    };
+    window.addEventListener('hashchange', update);
+    window.addEventListener('scroll', update, { passive: true });
+    update();
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('hashchange', update);
+      window.removeEventListener('scroll', update);
+    };
+  }, [targetKey]);
+
+  return activeTarget;
+}
+
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('familyquest_token'));
   const [user, setUser] = useState<User | null>(null);
@@ -158,24 +191,12 @@ function FamilyQuestMark() {
 
 function DashboardSidebar({ user, familyName, onLogout }: { user: User; familyName: string; onLogout: () => void }) {
   const items = user.role === 'parent' ? parentNavItems : navItems;
-  const [activeTarget, setActiveTarget] = useState(window.location.hash || '#top');
-  useEffect(() => {
-    const updateActiveTarget = () => setActiveTarget(window.location.hash || '#top');
-    window.addEventListener('hashchange', updateActiveTarget);
-    updateActiveTarget();
-    return () => window.removeEventListener('hashchange', updateActiveTarget);
-  }, []);
+  const activeTarget = useActiveSection([...items.map((item) => item.target), '#accounts', '#profile']);
   return <aside className="dashboard-sidebar"><a className="sidebar-brand" href="#top"><FamilyQuestMark /><span><strong>FamilyQuest</strong><small>{familyName}</small></span></a><nav className="sidebar-nav" aria-label="Hlavní navigace">{items.map((item) => <a className={activeTarget === item.target ? 'active' : ''} href={item.target} key={item.label}><span>{item.icon}</span>{item.label}</a>)}</nav><div className="sidebar-footer">{user.role === 'parent' && <a className={activeTarget === '#accounts' ? 'active' : ''} href="#accounts"><span>👤</span> Správa účtů</a>}<a className={activeTarget === '#profile' ? 'active' : ''} href="#profile"><span>◉</span> Profil</a><button onClick={onLogout}><span>↪</span> Odhlásit se</button><div className="sidebar-user"><span className="user-avatar">{user.avatar || user.full_name.charAt(0)}</span><span><strong>{user.full_name}</strong><small>{user.role === 'parent' ? 'Rodič' : 'Dobrodruh'}</small></span></div></div></aside>;
 }
 
 function MobileNav({ role }: { role: 'parent' | 'child' }) {
-  const [activeTarget, setActiveTarget] = useState(window.location.hash || '#top');
-  useEffect(() => {
-    const updateActiveTarget = () => setActiveTarget(window.location.hash || '#top');
-    window.addEventListener('hashchange', updateActiveTarget);
-    updateActiveTarget();
-    return () => window.removeEventListener('hashchange', updateActiveTarget);
-  }, []);
+  const activeTarget = useActiveSection(mobileItems.map((item) => item.target));
   return <nav className="mobile-nav" aria-label="Mobilní navigace">{mobileItems.map((item) => <a className={activeTarget === item.target ? 'active' : ''} href={item.target} key={`${role}-${item.label}`}><span>{item.icon}</span><small>{item.label}</small></a>)}</nav>;
 }
 
