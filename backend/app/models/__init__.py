@@ -2,6 +2,7 @@ from app.database import Base
 from app.models.familyquest import (
     Achievement,
     AdventurePoint,
+    AdventurePointClaim,
     DailyStreak,
     Family,
     FamilyMember,
@@ -23,6 +24,7 @@ __all__ = [
     "Base",
     "Achievement",
     "AdventurePoint",
+    "AdventurePointClaim",
     "DailyStreak",
     "Family",
     "FamilyMember",

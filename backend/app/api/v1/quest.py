@@ -18,6 +18,7 @@ from app.database import get_db
 from app.models.familyquest import (
     Achievement,
     AdventurePoint,
+    AdventurePointClaim,
     CompletionStatus,
     DailyStreak,
     Family,
@@ -313,6 +314,24 @@ def adventure_read(
     for point in points:
         point_status, current_seen = adventure_status(point, xp, level, current_seen)
         result.append(AdventurePointRead.model_validate(point).model_copy(update={"status": point_status}))
+    target_member = db.query(FamilyMember).filter(
+        FamilyMember.family_id == family_id,
+        FamilyMember.user_id == target_id,
+        FamilyMember.role == UserRole.child.value,
+    ).first()
+    if target_member and not child_id:
+        current_user_id = target_id
+        newly_claimed = [
+            point for point, item in zip(points, result)
+            if item.status == "completed"
+            and point.reward_xp
+            and not db.query(AdventurePointClaim).filter_by(point_id=point.id, user_id=current_user_id).first()
+        ]
+        if newly_claimed:
+            for point in newly_claimed:
+                db.add(AdventurePointClaim(point_id=point.id, user_id=current_user_id))
+                db.add(XPTransaction(user_id=current_user_id, amount=point.reward_xp, reason=f"Milník: {point.title}"))
+            db.commit()
     return result
 
 
@@ -335,6 +354,35 @@ def list_adventure_points(
         child_id,
         include_inactive=current_user.role == UserRole.parent.value,
     )
+
+
+@router.post("/adventure/points/{point_id}/claim")
+def claim_adventure_point(
+    point_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    family = family_or_404(db, current_user)
+    point = db.query(AdventurePoint).filter(
+        AdventurePoint.id == point_id,
+        AdventurePoint.family_id == family.id,
+        AdventurePoint.is_active.is_(True),
+    ).first()
+    if not point:
+        raise HTTPException(status_code=404, detail="Milník nebyl nalezen.")
+    if current_user.role != UserRole.child.value:
+        raise HTTPException(status_code=403, detail="Odměny za milníky může vyzvedávat pouze dítě.")
+    xp = int(db.query(func.coalesce(func.sum(XPTransaction.amount), 0)).filter(XPTransaction.user_id == current_user.id).scalar() or 0)
+    level = xp // 100 + 1
+    if not adventure_status(point, xp, level, True)[0] == "completed":
+        raise HTTPException(status_code=409, detail="Tento milník ještě není dokončený.")
+    if db.query(AdventurePointClaim).filter_by(point_id=point.id, user_id=current_user.id).first():
+        return {"awarded_xp": 0, "message": "Odměna za tento milník již byla vyzvednuta."}
+    db.add(AdventurePointClaim(point_id=point.id, user_id=current_user.id))
+    if point.reward_xp:
+        db.add(XPTransaction(user_id=current_user.id, amount=point.reward_xp, reason=f"Milník: {point.title}"))
+    db.commit()
+    return {"awarded_xp": point.reward_xp, "message": f"Získali jste +{point.reward_xp} XP za milník {point.title}."}
 
 
 @router.post("/adventure/points", response_model=AdventurePointRead, status_code=status.HTTP_201_CREATED)

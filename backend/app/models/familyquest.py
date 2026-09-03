@@ -340,3 +340,14 @@ class AdventurePoint(Base):
     @property
     def order(self) -> int:
         return self.order_index
+
+
+class AdventurePointClaim(Base):
+    __tablename__ = "adventure_point_claims"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
+    point_id = Column(String(36), ForeignKey("adventure_points.id"), nullable=False)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    claimed_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (UniqueConstraint("point_id", "user_id", name="uq_adventure_point_claim"),)
