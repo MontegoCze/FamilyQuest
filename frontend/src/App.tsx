@@ -79,6 +79,7 @@ function usePullToRefresh(onRefresh: () => Promise<void>) {
         refreshingRef.current = false;
         setIsRefreshing(false);
       }
+
     };
     const onTouchCancel = () => {
       startY.current = null;
@@ -98,6 +99,48 @@ function usePullToRefresh(onRefresh: () => Promise<void>) {
   }, []);
 
   return { pullDistance, isRefreshing };
+}
+
+function useRealtimeSync(onChange: () => Promise<void>) {
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  useEffect(() => {
+    let socket: WebSocket | null = null;
+    let reconnectTimer = 0;
+    let stopped = false;
+    let delay = 1000;
+    const processedEvents = new Set<string>();
+    const connect = () => {
+      if (stopped) return;
+      const websocketUrl = API.replace(/^http/, 'ws').replace(/\/api\/v1\/?$/, '/api/v1/ws');
+      socket = new WebSocket(`${websocketUrl}?token=${encodeURIComponent(localStorage.getItem('familyquest_token') ?? '')}`);
+      socket.onopen = () => { delay = 1000; };
+      socket.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data) as { type?: string; event_id?: string };
+          if (message.type === 'data_changed') {
+            if (message.event_id && processedEvents.has(message.event_id)) return;
+            if (message.event_id) {
+              processedEvents.add(message.event_id);
+              if (processedEvents.size > 100) processedEvents.delete(processedEvents.values().next().value as string);
+            }
+            window.dispatchEvent(new CustomEvent('familyquest:realtime'));
+            onChangeRef.current().catch(() => undefined);
+          }
+        } catch {
+          // Keep the connection alive if a proxy sends a non-JSON message.
+        }
+      };
+      socket.onclose = () => {
+        if (!stopped) {
+          reconnectTimer = window.setTimeout(connect, delay);
+          delay = Math.min(delay * 2, 30000);
+        }
+      };
+    };
+    connect();
+    return () => { stopped = true; window.clearTimeout(reconnectTimer); socket?.close(); };
+  }, []);
 }
 
 function PullToRefreshIndicator({ pullDistance, isRefreshing }: { pullDistance: number; isRefreshing: boolean }) {
@@ -122,8 +165,9 @@ function NotificationCenter({ token }: { token: string }) {
   };
   useEffect(() => {
     load().catch(() => undefined);
-    const timer = window.setInterval(() => { load().catch(() => undefined); }, 15000);
-    return () => window.clearInterval(timer);
+    const refresh = () => { load().catch(() => undefined); };
+    window.addEventListener('familyquest:realtime', refresh);
+    return () => window.removeEventListener('familyquest:realtime', refresh);
   }, [token]);
   const enableBrowserNotifications = async () => {
     if ('Notification' in window && Notification.permission === 'default') await Notification.requestPermission();
@@ -342,6 +386,7 @@ function ParentDashboard({ user, token, onLogout }: { user: User; token: string;
   };
   useEffect(() => { refresh(); }, []);
   const pullRefresh = usePullToRefresh(refresh);
+  useRealtimeSync(refresh);
 
   const complete = async (taskId: string) => { try { await request(`/tasks/${taskId}/complete`, { method: 'POST', body: JSON.stringify({}) }, token); setMessage('Úkol odeslán ke schválení.'); refresh(); } catch (err) { setMessage(err instanceof Error ? err.message : 'Úkol se nepodařilo dokončit.'); } };
   const review = async (completionId: string, status: 'approved' | 'rejected', notes?: string) => { try { await request(`/completions/${completionId}/review`, { method: 'POST', body: JSON.stringify({ status, notes: notes || null }) }, token); setMessage(status === 'rejected' ? 'Úkol byl vrácen dítěti k přepracování.' : 'Úkol byl schválen.'); refresh(); } catch (err) { setMessage(err instanceof Error ? err.message : 'Schválení se nezdařilo.'); } };
@@ -453,6 +498,7 @@ function ChildDashboard({ user, token, onLogout }: { user: User; token: string; 
     };
   }, []);
   const pullRefresh = usePullToRefresh(load);
+  useRealtimeSync(load);
   const finish = async (task: Task) => { try { await request(`/tasks/${task.id}/complete`, { method: 'POST', body: JSON.stringify({}) }, token); await load(); setNotice(`Mise „${task.title}“ byla odeslána rodičům ke schválení.`); } catch (err) { setNotice(err instanceof Error ? err.message : 'Misi se nepodařilo dokončit.'); await load(); } };
   const redeem = async (reward: Reward) => { try { await request(`/rewards/${reward.id}/redeem`, { method: 'POST', body: JSON.stringify({}) }, token); setNotice(`Žádost o odměnu „${reward.name}“ čeká na schválení.`); } catch (err) { setNotice(err instanceof Error ? err.message : 'Odměnu se nepodařilo vyzvednout.'); } };
   const today = new Date().toISOString().slice(0, 10);
