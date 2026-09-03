@@ -409,7 +409,7 @@ function ChildDashboard({ user, token, onLogout }: { user: User; token: string; 
   };
   useEffect(() => { load(); }, []);
   const pullRefresh = usePullToRefresh(load);
-  const finish = async (task: Task) => { try { await request(`/tasks/${task.id}/complete`, { method: 'POST', body: JSON.stringify({}) }, token); setNotice(`Mise „${task.title}“ odeslána rodičům ke schválení!`); load(); } catch (err) { setNotice(err instanceof Error ? err.message : 'Misi se nepodařilo dokončit.'); } };
+  const finish = async (task: Task) => { try { await request(`/tasks/${task.id}/complete`, { method: 'POST', body: JSON.stringify({}) }, token); await load(); setNotice(`Mise „${task.title}“ byla odeslána rodičům ke schválení.`); } catch (err) { setNotice(err instanceof Error ? err.message : 'Misi se nepodařilo dokončit.'); await load(); } };
   const redeem = async (reward: Reward) => { try { await request(`/rewards/${reward.id}/redeem`, { method: 'POST', body: JSON.stringify({}) }, token); setNotice(`Žádost o odměnu „${reward.name}“ čeká na schválení.`); } catch (err) { setNotice(err instanceof Error ? err.message : 'Odměnu se nepodařilo vyzvednout.'); } };
   const today = new Date().toISOString().slice(0, 10);
   const todayTasks = tasks.filter((task) => (!task.due_date || task.due_date.startsWith(today)) && (categoryFilter === 'all' || normalizeCategory(task.category) === categoryFilter));

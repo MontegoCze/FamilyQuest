@@ -553,10 +553,10 @@ def complete_task(task_id: str, payload: CompletionCreate, current_user: User = 
     family = family_or_404(db, current_user)
     task = get_task(db, family.id, task_id)
     if current_user.role == "child" and not db.query(TaskAssignment).filter(TaskAssignment.task_id == task.id, TaskAssignment.user_id == current_user.id).first():
-        raise HTTPException(status_code=403, detail="You can only complete tasks assigned to you.")
+        raise HTTPException(status_code=403, detail="Můžete potvrdit pouze úkoly, které vám byly přiděleny.")
     existing = db.query(TaskCompletion).filter(TaskCompletion.task_id == task.id, TaskCompletion.user_id == current_user.id, TaskCompletion.status == "pending").first()
     if existing:
-        raise HTTPException(status_code=409, detail="This task is already awaiting review.")
+        raise HTTPException(status_code=409, detail="Tento úkol již čeká na schválení rodičem.")
     completion = TaskCompletion(task_id=task.id, user_id=current_user.id, notes=payload.notes, status="approved" if current_user.role == "parent" else "pending")
     db.add(completion)
     db.flush()
@@ -579,9 +579,9 @@ def review_completion(completion_id: str, payload: CompletionReview, current_use
     family = family_or_404(db, current_user)
     completion = db.query(TaskCompletion).join(Task).filter(TaskCompletion.id == completion_id, Task.family_id == family.id).first()
     if not completion:
-        raise HTTPException(status_code=404, detail="Completion not found.")
+        raise HTTPException(status_code=404, detail="Dokončení úkolu nebylo nalezeno.")
     if completion.status != "pending":
-        raise HTTPException(status_code=409, detail="This completion has already been reviewed.")
+        raise HTTPException(status_code=409, detail="Toto dokončení úkolu již bylo vyhodnoceno.")
     completion.status = payload.status
     completion.reviewed_at = datetime.utcnow()
     if payload.notes is not None:
@@ -590,10 +590,10 @@ def review_completion(completion_id: str, payload: CompletionReview, current_use
         db.add(XPTransaction(user_id=completion.user_id, amount=completion.task.xp, reason=f"Completed: {completion.task.title}"))
         update_streak(db, completion.user_id)
         unlock_achievements(db, completion.user, family.id)
-        notify(db, completion.user_id, "completion", "Task approved", f"You earned {completion.task.xp} XP for {completion.task.title}.")
+        notify(db, completion.user_id, "completion", "Úkol schválen", f"Za úkol {completion.task.title} jste získali {completion.task.xp} XP.")
     else:
         reason = payload.notes.strip() if payload.notes and payload.notes.strip() else "Zkontroluj prosím úkol a zkus ho znovu."
-        notify(db, completion.user_id, "completion", "Task needs another try", f"{completion.task.title}: {reason}")
+        notify(db, completion.user_id, "completion", "Úkol je potřeba přepracovat", f"{completion.task.title}: {reason}")
     db.commit()
     db.refresh(completion)
     return completion
