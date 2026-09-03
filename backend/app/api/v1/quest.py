@@ -214,7 +214,7 @@ def unlock_achievements(db: Session, user: User, family_id: str) -> None:
             record.unlocked_at = datetime.utcnow()
             if achievement.xp_reward:
                 db.add(XPTransaction(user_id=user.id, amount=achievement.xp_reward, reason=f"Achievement: {achievement.name}"))
-            notify(db, user.id, "achievement", "Achievement unlocked", achievement.name)
+            notify(db, user.id, "achievement", "Odemčený achievement", achievement.name)
 
 
 def stats_for(db: Session, user: User, family_id: str) -> StatsRead:
@@ -522,7 +522,7 @@ def create_task(payload: TaskCreate, current_user: User = Depends(require_parent
     db.flush()
     for user_id in child_ids(db, family.id, payload.assignee_ids):
         db.add(TaskAssignment(task_id=task.id, user_id=user_id))
-        notify(db, user_id, "task", "New task assigned", task.title)
+        notify(db, user_id, "task", "Nový úkol", f"Byl vám přidělen úkol „{task.title}“.")
     db.commit()
     return get_task(db, family.id, task.id)
 
@@ -551,6 +551,10 @@ def update_task(task_id: str, payload: TaskUpdate, current_user: User = Depends(
         task.assignments.clear()
         for user_id in assignees:
             task.assignments.append(TaskAssignment(user_id=user_id))
+            notify(db, user_id, "task", "Úkol byl upraven", f"Úkol „{task.title}“ byl aktualizován.")
+    else:
+        for assignment in task.assignments:
+            notify(db, assignment.user_id, "task", "Úkol byl upraven", f"Úkol „{task.title}“ byl aktualizován.")
     db.commit()
     return get_task(db, family.id, task.id)
 
@@ -558,6 +562,8 @@ def update_task(task_id: str, payload: TaskUpdate, current_user: User = Depends(
 @router.delete("/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
 def archive_task(task_id: str, current_user: User = Depends(require_parent), db: Session = Depends(get_db)):
     task = get_task(db, family_or_404(db, current_user).id, task_id)
+    for assignment in task.assignments:
+        notify(db, assignment.user_id, "task", "Úkol byl zrušen", f"Úkol „{task.title}“ byl zrušen.")
     task.is_active = False
     db.commit()
 
@@ -570,7 +576,7 @@ def assign_task(task_id: str, payload: AssignmentCreate, current_user: User = De
     for user_id in ids:
         if not db.query(TaskAssignment).filter(TaskAssignment.task_id == task.id, TaskAssignment.user_id == user_id).first():
             db.add(TaskAssignment(task_id=task.id, user_id=user_id))
-            notify(db, user_id, "task", "New task assigned", task.title)
+            notify(db, user_id, "task", "Nový úkol", f"Byl vám přidělen úkol „{task.title}“.")
     db.commit()
     return db.query(TaskAssignment).filter(TaskAssignment.task_id == task.id).all()
 
@@ -800,7 +806,7 @@ def redeem_reward(reward_id: str, current_user: User = Depends(get_current_user)
     db.add(redemption)
     db.flush()
     for member in db.query(FamilyMember).filter(FamilyMember.family_id == family.id, FamilyMember.role == "parent").all():
-        notify(db, member.user_id, "reward", "Reward requested", f"{current_user.full_name} requested {reward.name}.")
+        notify(db, member.user_id, "reward", "Nová žádost o odměnu", f"{current_user.full_name} požádal(a) o odměnu „{reward.name}“.")
     db.commit()
     db.refresh(redemption)
     return redemption
@@ -831,7 +837,7 @@ def review_redemption(redemption_id: str, payload: RedemptionReview, current_use
         db.add(XPTransaction(user_id=redemption.user_id, amount=-redemption.reward.cost, reason=f"Reward: {redemption.reward.name}"))
     redemption.status = payload.status
     redemption.reviewed_at = datetime.utcnow()
-    notify(db, redemption.user_id, "reward", f"Reward {payload.status}", redemption.reward.name)
+    notify(db, redemption.user_id, "reward", "Odměna schválena" if payload.status == "approved" else "Odměna zamítnuta", f"Žádost o odměnu „{redemption.reward.name}“ byla vyřízena.")
     db.commit()
     db.refresh(redemption)
     return redemption
