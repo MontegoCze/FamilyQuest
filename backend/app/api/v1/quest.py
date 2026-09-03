@@ -850,18 +850,17 @@ def list_notifications(current_user: User = Depends(get_current_user), db: Sessi
     return db.query(Notification).filter(Notification.user_id == current_user.id).order_by(Notification.created_at.desc()).limit(100).all()
 
 
-@router.post("/notifications/{notification_id}/read", response_model=NotificationRead)
+@router.post("/notifications/{notification_id}/read", status_code=status.HTTP_204_NO_CONTENT)
 def mark_notification_read(notification_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     notification = db.query(Notification).filter(Notification.id == notification_id, Notification.user_id == current_user.id).first()
     if not notification:
         raise HTTPException(status_code=404, detail="Notification not found.")
-    notification.is_read = True
+    db.delete(notification)
     db.commit()
-    db.refresh(notification)
-    return notification
+    return None
 
 
 @router.post("/notifications/read-all", status_code=status.HTTP_204_NO_CONTENT)
 def mark_all_notifications_read(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    db.query(Notification).filter(Notification.user_id == current_user.id, Notification.is_read.is_(False)).update({"is_read": True})
+    db.query(Notification).filter(Notification.user_id == current_user.id).delete(synchronize_session=False)
     db.commit()

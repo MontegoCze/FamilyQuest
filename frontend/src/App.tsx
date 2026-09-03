@@ -210,9 +210,8 @@ function NotificationCenter({ token }: { token: string }) {
     if ('Notification' in window && Notification.permission === 'default') await Notification.requestPermission();
   };
   const markRead = async (item: Notification) => {
-    if (item.is_read) return;
     await request(`/notifications/${item.id}/read`, { method: 'POST' }, token);
-    setItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, is_read: true } : entry));
+    setItems((current) => current.filter((entry) => entry.id !== item.id));
   };
   const unread = items.filter((item) => !item.is_read).length;
   return <section className="notification-center" aria-label="Oznámení"><div className="notification-heading"><strong>Oznámení {unread > 0 && <span>{unread}</span>}</strong><button className="secondary compact" onClick={enableBrowserNotifications}>Povolit upozornění</button></div>{items.length === 0 ? <p className="muted">Zatím žádná oznámení.</p> : items.slice(0, 5).map((item) => <button className={`notification-item ${item.is_read ? '' : 'unread'}`} key={item.id} onClick={() => markRead(item)}><strong>{item.title}</strong><small>{item.message}</small></button>)}</section>;
@@ -430,7 +429,7 @@ function ParentDashboard({ user, token, onLogout }: { user: User; token: string;
   const review = async (completionId: string, status: 'approved' | 'rejected', notes?: string) => { try { await request(`/completions/${completionId}/review`, { method: 'POST', body: JSON.stringify({ status, notes: notes || null }) }, token); setMessage(status === 'rejected' ? 'Úkol byl vrácen dítěti k přepracování.' : 'Úkol byl schválen.'); refresh(); } catch (err) { setMessage(err instanceof Error ? err.message : 'Schválení se nezdařilo.'); } };
   const rejectWithNote = (completionId: string) => { const notes = window.prompt('Napište dítěti důvod vrácení úkolu:', ''); if (notes === null) return; review(completionId, 'rejected', notes.trim() || undefined); };
   const reviewReward = async (id: string, status: 'approved' | 'rejected') => { try { await request(`/redemptions/${id}/review`, { method: 'POST', body: JSON.stringify({ status }) }, token); setMessage(status === 'approved' ? 'Odměna byla schválena.' : 'Žádost o odměnu byla zamítnuta.'); refresh(); } catch (err) { setMessage(err instanceof Error ? err.message : 'Odměnu se nepodařilo zpracovat.'); } };
-  const markRead = async (id: string) => { await request(`/notifications/${id}/read`, { method: 'POST' }, token); setNotifications(notifications.map((item) => item.id === id ? { ...item, is_read: true } : item)); };
+  const markRead = async (id: string) => { await request(`/notifications/${id}/read`, { method: 'POST' }, token); setNotifications((current) => current.filter((item) => item.id !== id)); };
   const createFamily = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const name = new FormData(event.currentTarget).get('name'); try { await request('/family', { method: 'POST', body: JSON.stringify({ name }) }, token); refresh(); } catch (err) { setMessage(err instanceof Error ? err.message : 'Rodinu se nepodařilo vytvořit.'); } };
 
   const pendingReviews = tasks.flatMap((task) => task.completions.filter((completion) => completion.status === 'pending').map((completion) => ({ task, completion, name: task.assignments.find((assignment) => assignment.user_id === completion.user_id)?.user_name ?? 'Člen rodiny' })));
